@@ -5,9 +5,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 )
+
+type config struct {
+    pages               map[string]int
+    baseURL             *url.URL
+    mu                  *sync.Mutex
+    concurrencyControl  chan struct{}
+    wg                  *sync.WaitGroup
+    maxPages            int
+}
 
 func main() {
     args := os.Args[1:]
@@ -15,24 +27,46 @@ func main() {
     if len(args) < 1 {
         fmt.Println("no website provided")
         os.Exit(1)
-    } else if len(args) > 1 {
+    } else if len(args) >  3 {
         fmt.Println("too many arguments provided")
         os.Exit(1)
     }
 
-    fmt.Printf("starting crawl of: %s\n", args[0])
+    baseURL, err := url.Parse(args[0])
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
     
-    pages := make(map[string]int)
+    // buffer size
+    maxConcurrency := 1
+    maxPages := 50
+    if len(args) > 1 {
+        maxConcurrency, err = strconv.Atoi(args[1])
+        maxPages, err = strconv.Atoi(args[2])
+    }
 
-    crawlPage(args[0], args[0], pages)
+    fmt.Printf("starting crawl of: %s\n", baseURL.String())
+    cfg := config{
+        pages:              make(map[string]int),
+        baseURL:            baseURL,
+        mu:                 &sync.Mutex{},
+        concurrencyControl: make(chan struct{}, maxConcurrency),
+        wg:                 &sync.WaitGroup{},
+        maxPages:           maxPages,
+    }
 
-    fmt.Printf("Linked Pages (%d)\n", len(pages))
+    //cfg.wg.Add(1)
+    cfg.crawlPage(args[0])
+    cfg.wg.Wait()
 
-    if len(pages) == 0 {
+    fmt.Printf("Linked Pages (%d)\n", len(cfg.pages))
+
+    if len(cfg.pages) == 0 {
         fmt.Println("no pages detected")
         return
     } else {
-        for link, num := range pages {
+        for link, num := range cfg.pages {
             fmt.Printf(" - (%v) %s\n", num, link)
         }
     }
@@ -62,9 +96,37 @@ func getHTML(rawURL string) (string, error) {
     return string(rawHTML), err
 }
 
-func crawlPage(rawBaseURL, rawCurrentURL string, pages map[string]int) {
-    if !strings.Contains(rawCurrentURL, rawBaseURL) {
-        fmt.Printf("%s not in domain of %s\n", rawCurrentURL, rawBaseURL)
+func (cfg *config) crawlPage(rawCurrentURL string) {
+    cfg.wg.Add(1)
+    defer cfg.wg.Done()
+    cfg.concurrencyControl <- struct{}{}
+    defer func() {
+        <-cfg.concurrencyControl
+    }()
+    
+    cfg.mu.Lock()
+    if len(cfg.pages) >= cfg.maxPages {
+        cfg.mu.Unlock()
+        return
+    }
+    cfg.mu.Unlock()
+
+    addPageVisit := func (normalizedURL string) (isFirst bool) {
+        isFirst = false
+        cfg.mu.Lock()
+        defer cfg.mu.Unlock()
+        if val, ok := cfg.pages[normalizedURL]; ok {
+            cfg.pages[normalizedURL] = val + 1
+        } else {
+            isFirst = true
+            //fmt.Printf("* new domain page %s\n", currentURL)
+            cfg.pages[normalizedURL] = 1
+        }
+        return
+    }
+
+    if !strings.Contains(rawCurrentURL, cfg.baseURL.String()) {
+        fmt.Printf("%s not in domain of %s\n", rawCurrentURL, cfg.baseURL.String())
         return
     }
 
@@ -75,22 +137,19 @@ func crawlPage(rawBaseURL, rawCurrentURL string, pages map[string]int) {
     }
 
     //fmt.Printf("updating page count for %s\n", currentURL)
-    if val, ok := pages[currentURL]; ok {
-        pages[currentURL] = val + 1
+    first := addPageVisit(currentURL)
+    if !first {
         return
-    } else {
-        //fmt.Printf("* new domain page %s\n", currentURL)
-        pages[currentURL] = 1
     }
 
     fmt.Printf("getting HTML from %s\n", rawCurrentURL)
     currentHTML, err := getHTML(rawCurrentURL)
     if err != nil {
-        fmt.Println(err)
+        fmt.Printf("  %s\n", err)
         return
     }
 
-    links, err := getURLsFromHTML(currentHTML, rawBaseURL)
+    links, err := getURLsFromHTML(currentHTML, cfg.baseURL.String())
     if err != nil {
         fmt.Println(err)
         return
@@ -106,7 +165,7 @@ func crawlPage(rawBaseURL, rawCurrentURL string, pages map[string]int) {
             //fmt.Printf("skipped: %s same as %s\n", link, rawCurrentURL)
             continue
         }
-        crawlPage(rawBaseURL, links[i], pages)
+        go cfg.crawlPage(links[i])
     }
 
     return
