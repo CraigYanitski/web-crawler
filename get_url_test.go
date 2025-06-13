@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -62,29 +60,29 @@ func TestGetURLsFromHTML(t *testing.T) {
             t.Errorf("Error: %s", err)
         }
 
-        links := []string{}
-        var absLink string
+        // links := []string{}
+        // var absLink string
 
-        for _, link := range result {
-            if strings.Contains(link, ":") {
-                absLink, err = normalizeURL(link)
-                if err != nil {
-                    t.Errorf("Error: %s", err)
-                }
-            } else {
-                u, err := url.Parse(test.inputURL)
-                if err != nil {
-                    t.Errorf("Error: %s", err)
-                }
-                absLink, err = normalizeURL(u.JoinPath(link).String())
-                if err != nil {
-                    t.Errorf("Error: %s", err)
-                }
-            }
-            links = append(links, absLink)
-        }
+        // for _, link := range result {
+        //     if strings.Contains(link, ":") {
+        //         absLink, err = normalizeURL(link)
+        //         if err != nil {
+        //             t.Errorf("Error: %s", err)
+        //         }
+        //     } else {
+        //         u, err := url.Parse(test.inputURL)
+        //         if err != nil {
+        //             t.Errorf("Error: %s", err)
+        //         }
+        //         absLink, err = normalizeURL(u.JoinPath(link).String())
+        //         if err != nil {
+        //             t.Errorf("Error: %s", err)
+        //         }
+        //     }
+        //     links = append(links, absLink)
+        // }
 
-        if !reflect.DeepEqual(links, test.expected) {
+        if !reflect.DeepEqual(result, test.expected) {
             failCount++
             t.Errorf(testfmt, test.inputURL, test.inputBody, test.expected, result)
         } else {

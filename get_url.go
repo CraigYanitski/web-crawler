@@ -12,6 +12,7 @@ import (
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
     r := strings.NewReader(htmlBody)
     baseURL, err := url.Parse(rawBaseURL)
+    fmt.Println(baseURL.String())
     if err != nil {
         return nil, err
     }
@@ -23,12 +24,15 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
     urls := checkNodeURLs(node)
 
+    fmt.Println(urls)
+
     for i, url := range urls {
         if strings.Contains(url, ":") {
-            continue
+            urls[i] = url
         } else {
             urls[i] = baseURL.JoinPath(url).String()
         }
+        fmt.Printf("\n%s\n", urls[i])
     }
 
     return urls, nil
@@ -37,7 +41,6 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 func checkNodeURLs(node *html.Node) []string {
     var urls []string
     for child := range node.Descendants() {
-        fmt.Println(child.Namespace)
         if child.Type == html.ElementNode {
             if child.DataAtom == atom.A {
                 for _, a := range child.Attr {
@@ -45,8 +48,10 @@ func checkNodeURLs(node *html.Node) []string {
                         urls = append(urls, a.Val)
                     }
                 }
-            } else {
-                urls = checkNodeURLs(child)
+            }
+        } else {
+            for g := range child.Descendants() {
+                urls = checkNodeURLs(g)
             }
         }
     }
