@@ -39,7 +39,7 @@ func checkNodeURLs(node *html.Node) []string {
         if child.Type == html.ElementNode {
             if child.DataAtom == atom.A {
                 for _, a := range child.Attr {
-                    if a.Key == "href" {
+                    if a.Key == "href" && a.Val[0] != '#' {
                         urls = append(urls, a.Val)
                     }
                 }
