@@ -14,7 +14,7 @@ Inputs:
 Expected:  %v
 Actual:    %v
 `
-    testBody = `
+    testBodyOne = `
 <html>
 	<body>
 		<a href="/path/one">
@@ -24,6 +24,51 @@ Actual:    %v
 			<span>Boot.dev</span>
 		</a>
 	</body>
+</html>
+`
+    testBodyTwo = `
+<html>
+    <body>
+        <a href="https://other.com/path/one">
+            <span>Boot.dev</span>
+        </a>
+        <ul>
+            <li>
+                <a href="/path/one">
+                    <span>Boot.dev</span>
+                </a>
+            </li>
+            <li>
+                <a href="/path/two">
+                    <span>Boot.dev</span>
+                </a>
+            </li>
+        </ul>
+    </body>
+</html>
+`
+    testBodyThree = `
+<html>
+    <body>
+        <a href="http://other.com/path/one">
+            <span>Boot.dev</span>
+        </a>
+        <ul>
+            <li>
+                <a href="/path/one">
+                    <span>Boot.dev</span>
+                </a>
+            </li>
+            <li>
+                <a href="path/two">
+                    <span>Boot.dev</span>
+                </a>
+            </li>
+        </ul>
+        <a href="mailto:boot@dev">
+            <span>boot@dev</span>
+        </a>
+    </body>
 </html>
 `
     )
@@ -40,8 +85,18 @@ func TestGetURLsFromHTML(t *testing.T) {
         {
             name:      "absolute and relative URLs",
             inputURL:  "https://blog.boot.dev",
-            inputBody: testBody,
+            inputBody: testBodyOne,
             expected:  []string{"https://blog.boot.dev/path/one", "https://other.com/path/one"},
+        }, {
+            name:      "nested anchors",
+            inputURL:  "https://blog.boot.dev",
+            inputBody: testBodyTwo,
+            expected:  []string{"https://other.com/path/one", "https://blog.boot.dev/path/one", "https://blog.boot.dev/path/two"},
+        }, {
+            name:      "alternative schemes",
+            inputURL:  "https://blog.boot.dev",
+            inputBody: testBodyThree,
+            expected:  []string{"http://other.com/path/one", "https://blog.boot.dev/path/one", "https://blog.boot.dev/path/two", "mailto:boot@dev"},
         },
     }
 
@@ -52,7 +107,8 @@ func TestGetURLsFromHTML(t *testing.T) {
 
     for _, test := range tests {
         fmt.Println("----------------------------------------")
-        fmt.Printf("Getting URLs from %v", test.inputURL)
+        fmt.Printf("%v\n", test.name)
+        fmt.Printf("Getting URLs from %v\n", test.inputURL)
 
         result, err := getURLsFromHTML(test.inputBody, test.inputURL)
         
@@ -87,7 +143,7 @@ func TestGetURLsFromHTML(t *testing.T) {
             t.Errorf(testfmt, test.inputURL, test.inputBody, test.expected, result)
         } else {
             passCount++
-            fmt.Printf(testfmt, test.inputURL, test.inputBody, test.expected, result)
+            //fmt.Printf(testfmt, test.inputURL, test.inputBody, test.expected, result)
         }
     }
 
