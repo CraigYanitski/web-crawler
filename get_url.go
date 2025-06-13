@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
     r := strings.NewReader(htmlBody)
     baseURL, err := url.Parse(rawBaseURL)
-    fmt.Println(baseURL.String())
     if err != nil {
         return nil, err
     }
@@ -24,15 +22,12 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
     urls := checkNodeURLs(node)
 
-    fmt.Println(urls)
-
     for i, url := range urls {
         if strings.Contains(url, ":") {
             urls[i] = url
         } else {
             urls[i] = baseURL.JoinPath(url).String()
         }
-        fmt.Printf("\n%s\n", urls[i])
     }
 
     return urls, nil
@@ -51,7 +46,7 @@ func checkNodeURLs(node *html.Node) []string {
             }
         } else {
             for g := range child.Descendants() {
-                urls = checkNodeURLs(g)
+                urls = append(urls, checkNodeURLs(g)...)
             }
         }
     }
