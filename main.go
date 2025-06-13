@@ -90,7 +90,7 @@ func crawlPage(rawBaseURL, rawCurrentURL string, pages map[string]int) {
         return
     }
 
-    links, err := getURLsFromHTML(currentHTML, rawCurrentURL)
+    links, err := getURLsFromHTML(currentHTML, rawBaseURL)
     if err != nil {
         fmt.Println(err)
         return
