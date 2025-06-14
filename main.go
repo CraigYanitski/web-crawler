@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,14 +63,16 @@ func main() {
 
     fmt.Printf("Linked Pages (%d)\n", len(cfg.pages))
 
-    if len(cfg.pages) == 0 {
-        fmt.Println("no pages detected")
-        return
-    } else {
-        for link, num := range cfg.pages {
-            fmt.Printf(" - (%v) %s\n", num, link)
-        }
-    }
+    // if len(cfg.pages) == 0 {
+    //     fmt.Println("no pages detected")
+    //     return
+    // } else {
+    //     for link, num := range cfg.pages {
+    //         fmt.Printf(" - (%v) %s\n", num, link)
+    //     }
+    // }
+
+    printReport(cfg.pages, cfg.baseURL.String())
 
     return
 }
@@ -169,4 +172,33 @@ func (cfg *config) crawlPage(rawCurrentURL string) {
     }
 
     return
+}
+
+func printReport(pages map[string]int, baseURL string) {
+    fmt.Printf(`
+=============================
+  REPORT for %s
+=============================
+`, baseURL)
+    links := sortMap(pages)
+    for _, link := range links {
+        fmt.Printf("Found %d internal links to %s\n", link.val, link.key)
+    }
+}
+
+type mapKV struct {
+    key  string
+    val  int
+}
+
+func sortMap(inputMap map[string]int) []mapKV {
+    mapSlice := make([]mapKV, 0, len(inputMap))
+
+    for key := range inputMap {
+        mapSlice = append(mapSlice, mapKV{key: key, val: inputMap[key]})
+    }
+
+    sort.SliceStable(mapSlice, func(i, j int) bool {return mapSlice[i].key < mapSlice[j].key})
+    sort.SliceStable(mapSlice, func(i, j int) bool {return mapSlice[i].val > mapSlice[j].val})
+    return mapSlice
 }
